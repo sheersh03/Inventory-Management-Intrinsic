@@ -1,0 +1,63 @@
+{
+  "name": "portable-inventory-app",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:app\"",
+    "dev:renderer": "vite",
+    "dev:main": "tsup electron/main.ts electron/preload.ts --watch --format cjs --out-dir dist-electron",
+    "dev:app": "wait-on dist-electron/preload.cjs dist-electron/main.cjs http-get://localhost:5173 && electron .",
+    "build": "tsup electron/main.ts electron/preload.ts --format cjs --out-dir dist-electron && vite build",
+    "dist": "electron-builder --win portable",
+    "rebuild": "node scripts/run-electron-rebuild.mjs",
+    "postinstall": "node scripts/run-electron-rebuild.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "electron": "^31.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.17",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "tsup": "^8.0.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.0.0",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.example.portable.inventory",
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "node_modules/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/",
+        "to": "resources",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "InventoryApp-${version}-portable.exe"
+    }
+  }
+}
