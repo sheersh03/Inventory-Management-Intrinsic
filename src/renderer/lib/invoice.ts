@@ -173,9 +173,8 @@ export function buildInvoiceHtml(payload: InvoicePayload): string {
       <div class="page">
         <header>
           <div>
-            <h1>BabyBox Retail</h1>
-            <div class="tagline">GSTIN: 26CORPP3939N1ZA · Shop Online: BabyBox.In</div>
-            <div class="tagline">G/456, Basant Lok Comm, Vasant Vihar, Tardeo Road, Mumbai · Ph: 111 2222 3333</div>
+            <h1>KD COLLECTION</h1>
+            <div class="tagline">D-33 Shyam Park extension  Rajendra nagar Ghaziabad, Phn. No 8448802078</div>
           </div>
           <div style="text-align:right">
             <strong>Tax Invoice</strong>
@@ -243,41 +242,16 @@ export function buildInvoiceHtml(payload: InvoicePayload): string {
             <div class="label">Add: IGST (${taxPercent.toFixed(1)}%)</div>
             <div class="value">₹${taxAmount.toFixed(2)}</div>
           </div>
-          <div class="panel">
-            <div class="label">Total Tax</div>
-            <div class="value">₹${taxAmount.toFixed(2)}</div>
-          </div>
+
           <div class="panel">
             <div class="label">Total Amount After Tax</div>
             <div class="value">₹${afterTaxTotal.toFixed(2)}</div>
           </div>
         </div>
-
-        <div class="lower">
-          <div>
-            <strong>Billing proportions</strong>
-            <ul class="billing-list">
-              ${shareRows}
-            </ul>
-          </div>
-          <div class="qr">
-            ${qrSvg}
-            <div style="font-size:9px; color:#6b7280; margin-top:6px;">Pay using UPI / Scan to view invoice data</div>
-          </div>
-        </div>
-
-        <div class="bank">
-          <strong>Bank Details</strong>
-          <div>Name: ICICI</div>
-          <div>Branch: Surat</div>
-          <div>Acc. Number: 2715500356</div>
-          <div>IFSC: ICIC045F</div>
-          <div>UPI ID: ifox@icici</div>
-        </div>
-
+        
         <div class="bank">
           <strong>Terms and Conditions</strong>
-          <div>Subject to Maharashtra Jurisdiction.</div>
+          <div>Subject to Uttar Pradesh Jurisdiction.</div>
           <div>Our responsibility ceases as soon as goods leave our premises.</div>
           <div>Goods once sold will not be taken back.</div>
           <div>Delivery Ex-Premises.</div>
@@ -286,7 +260,7 @@ export function buildInvoiceHtml(payload: InvoicePayload): string {
         <footer>
           <div>
             <div>Certified that the particulars given above are true and correct.</div>
-            <div style="margin-top:24px; font-weight:700;">For Go GST Bill Demo</div>
+            <div style="margin-top:24px; font-weight:700;">We are a composite gst firm we don't charge gst from customers</div>
           </div>
           <div style="text-align:right; font-size:11px;">Authorised Signatory</div>
         </footer>
