@@ -185,3 +185,32 @@ ipcMain.handle('export:productsCsv', () => {
   const body = rows.map((p:any)=>[p.id,p.sku,p.name,p.category??'',p.price,p.stock,p.reorder_level].join(',')).join('\r\n');
   return header + body + (body ? '\r\n' : '');
 });
+
+ipcMain.handle('invoice:generate', async (_e, payload: { invoiceNo: number; html: string }) => {
+  const win = new BrowserWindow({
+    width: 1000,
+    height: 1400,
+    show: false,
+    webPreferences: {
+      sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  try {
+    await win.loadURL(`data:text/html;base64,${Buffer.from(payload.html, 'utf8').toString('base64')}`);
+    const pdfBuffer = await win.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'A4',
+      margin: { top: 16, bottom: 16, left: 16, right: 16 }
+    });
+    const invoicesDir = path.join(resolveBaseDir(), 'bills');
+    fs.mkdirSync(invoicesDir, { recursive: true });
+    const fileName = `Invoice-${payload.invoiceNo}-${Date.now()}.pdf`;
+    const filePath = path.join(invoicesDir, fileName);
+    fs.writeFileSync(filePath, pdfBuffer);
+    return filePath;
+  } finally {
+    win.close();
+  }
+});

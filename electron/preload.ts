@@ -12,4 +12,8 @@ contextBridge.exposeInMainWorld('api', {
     create: async (t: any) => ipcRenderer.invoke('tx:create', t)
   },
   exportCsv: async () => ipcRenderer.invoke('export:productsCsv')
+  ,
+  invoice: {
+    generate: async (payload: { invoiceNo: number; html: string }) => ipcRenderer.invoke('invoice:generate', payload)
+  }
 });

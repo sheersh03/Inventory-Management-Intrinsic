@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Product } from '../types';
 import { createTx } from '../lib/api';
+import { buildInvoiceHtml, InvoiceCustomer, InvoiceLine } from '../lib/invoice';
 
 type BillRow = {
   product_id: number | '';
@@ -8,11 +9,21 @@ type BillRow = {
   discount_percent: number;
 };
 
+const defaultCustomer: InvoiceCustomer = {
+  name: 'Walk-in Customer',
+  address: '',
+  phone: '',
+  gstin: '',
+  placeOfSupply: ''
+};
+
 export default function GenerateBill({ products, onSaved }: { products: Product[]; onSaved?: () => Promise<void> | void }) {
   const [items, setItems] = useState<BillRow[]>([{ product_id: '', qty: 1, discount_percent: 0 }]);
   const [reference, setReference] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [customer, setCustomer] = useState<InvoiceCustomer>(defaultCustomer);
 
   const itemsWithTotals = useMemo(() => {
     return items.map((item) => {
@@ -43,8 +54,12 @@ export default function GenerateBill({ products, onSaved }: { products: Product[
     setError(null);
   };
 
+  const hasInvoiceApi = typeof window !== 'undefined' && Boolean((window as any).api?.invoice?.generate);
+
   const handleGenerate = async () => {
     setError(null);
+    setSuccess(null);
+    const hasInvoiceApi = typeof window !== 'undefined' && Boolean((window as any).api?.invoice?.generate);
     const payloadItems = itemsWithTotals
       .filter(line => line.product_id)
       .map(line => ({
@@ -61,9 +76,39 @@ export default function GenerateBill({ products, onSaved }: { products: Product[
       setError('Quantity must be greater than zero.');
       return;
     }
+
     try {
       setLoading(true);
-      await createTx({ type: 'sale', reference: reference.trim() || undefined, items: payloadItems });
+      const result = await createTx({ type: 'sale', reference: reference.trim() || undefined, items: payloadItems });
+      const invoiceLines: InvoiceLine[] = itemsWithTotals
+        .filter(line => line.product_id)
+        .map((line) => ({
+          name: line.product?.name || `Item ${line.product_id}`,
+          description: line.product?.category ? `${line.product.category}` : undefined,
+          qty: line.qty,
+          unit_price: line.price,
+          discount_percent: line.discount,
+          taxable_value: line.subtotal,
+          total: line.total,
+          share_percent: total ? (line.total / total) * 100 : 0
+        }));
+      const html = buildInvoiceHtml({
+        invoiceNo: result.id,
+        date: new Date().toISOString(),
+        reference: reference.trim() || undefined,
+        customer,
+        items: invoiceLines,
+        subtotal: subTotal,
+        discount: discountTotal,
+        total,
+        taxPercent: 0
+      });
+      if (hasInvoiceApi) {
+        const savedPath = await (window as any).api.invoice.generate({ invoiceNo: result.id, html });
+        setSuccess(`Invoice PDF saved to ${savedPath}`);
+      } else {
+        setSuccess('Invoice generated locally; desktop PDF export is disabled in this environment.');
+      }
       resetForm();
       await onSaved?.();
     } catch (err: any) {
@@ -82,11 +127,48 @@ export default function GenerateBill({ products, onSaved }: { products: Product[
         </div>
       </div>
       <div style={{ marginTop: 12 }}>
+        <div className="grid2" style={{ gap: 8 }}>
+          <input
+            className="input"
+            placeholder="Customer name"
+            value={customer.name}
+            onChange={e => setCustomer(prev => ({ ...prev, name: e.target.value }))}
+          />
+          <input
+            className="input"
+            placeholder="Phone"
+            value={customer.phone}
+            onChange={e => setCustomer(prev => ({ ...prev, phone: e.target.value }))}
+          />
+        </div>
+        <div className="grid2" style={{ gap: 8, marginTop: 8 }}>
+          <input
+            className="input"
+            placeholder="GSTIN"
+            value={customer.gstin}
+            onChange={e => setCustomer(prev => ({ ...prev, gstin: e.target.value }))}
+          />
+          <input
+            className="input"
+            placeholder="Place of Supply"
+            value={customer.placeOfSupply}
+            onChange={e => setCustomer(prev => ({ ...prev, placeOfSupply: e.target.value }))}
+          />
+        </div>
+        <textarea
+          className="input"
+          placeholder="Address"
+          rows={2}
+          style={{ marginTop: 8, resize: 'vertical' }}
+          value={customer.address}
+          onChange={e => setCustomer(prev => ({ ...prev, address: e.target.value }))}
+        />
         <input
           className="input"
           placeholder="Reference (optional)"
           value={reference}
           onChange={e => setReference(e.target.value)}
+          style={{ marginTop: 8 }}
         />
       </div>
       {itemsWithTotals.map((line, idx) => (
@@ -149,6 +231,7 @@ export default function GenerateBill({ products, onSaved }: { products: Product[
         </div>
       </div>
       {error && <div className="low" style={{ marginTop: 10 }}>{error}</div>}
+      {success && <div style={{ marginTop: 10, color: '#22c55e' }}>{success}</div>}
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         <button className="btn primary" onClick={handleGenerate} disabled={loading}>
           {loading ? 'Generating…' : 'Generate bill'}
