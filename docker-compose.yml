@@ -1,0 +1,29 @@
+services:
+  app-dev:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    env_file: .env
+    profiles: ["dev"]
+
+  app-prod:
+    build:
+      context: .
+      target: prod
+    ports:
+      - "8080:80"
+    env_file: .env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    profiles: ["prod"]
+
+volumes:
+  node_modules:

@@ -43,10 +43,20 @@ function ensureDb() {
       tx_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
       product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
       qty INTEGER NOT NULL,
-      unit_price REAL NOT NULL
+      unit_price REAL NOT NULL,
+      discount_percent REAL NOT NULL DEFAULT 0,
+      discounted_unit_price REAL NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_tx_items_tx ON tx_items(tx_id);
   `);
+  const ensureColumn = (table: string, column: string, definition: string) => {
+    const info = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!info.some((row:any) => row.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+    }
+  };
+  ensureColumn('tx_items', 'discount_percent', 'discount_percent REAL NOT NULL DEFAULT 0');
+  ensureColumn('tx_items', 'discounted_unit_price', 'discounted_unit_price REAL NOT NULL DEFAULT 0');
   return db;
 }
 
@@ -64,14 +74,14 @@ const st = {
   tx: {
     list: db.prepare(`SELECT id, type, reference, created_at, amount FROM transactions ORDER BY id DESC LIMIT 200`),
     insertTx: db.prepare(`INSERT INTO transactions (type, reference) VALUES (?, ?)`),
-    insertItem: db.prepare(`INSERT INTO tx_items (tx_id, product_id, qty, unit_price) VALUES (?,?,?,?)`),
+    insertItem: db.prepare(`INSERT INTO tx_items (tx_id, product_id, qty, unit_price, discount_percent, discounted_unit_price) VALUES (?,?,?,?,?,?)`),
     addStock: db.prepare(`UPDATE products SET stock = stock + ? WHERE id = ?`),
-    sumItems: db.prepare(`SELECT SUM(qty * unit_price) as total FROM tx_items WHERE tx_id = ?`),
+    sumItems: db.prepare(`SELECT SUM(qty * discounted_unit_price) as total FROM tx_items WHERE tx_id = ?`),
     updateAmount: db.prepare(`UPDATE transactions SET amount = ? WHERE id = ?`)
   }
 };
 
-const createTx = db.transaction((type: 'purchase'|'sale', reference: string | null, items: {product_id:number; qty:number; unit_price:number}[]) => {
+const createTx = db.transaction((type: 'purchase'|'sale', reference: string | null, items: {product_id:number; qty:number; unit_price:number; discount_percent?: number}[]) => {
   const txInfo = st.tx.insertTx.run(type, reference);
   const txId = Number(txInfo.lastInsertRowid);
   for (const it of items) {
@@ -81,7 +91,9 @@ const createTx = db.transaction((type: 'purchase'|'sale', reference: string | nu
       const current = st.products.getStock.get(it.product_id)?.stock ?? 0;
       if (current - it.qty < 0) throw new Error('Insufficient stock for sale');
     }
-    st.tx.insertItem.run(txId, it.product_id, it.qty, it.unit_price);
+    const discount = Math.min(100, Math.max(0, Number(it.discount_percent ?? 0)));
+    const discountedUnitPrice = Math.max(0, Number(it.unit_price) * (1 - discount / 100));
+    st.tx.insertItem.run(txId, it.product_id, it.qty, it.unit_price, discount, discountedUnitPrice);
     st.tx.addStock.run(mult * it.qty, it.product_id);
   }
   const total = st.tx.sumItems.get(txId).total ?? 0;
@@ -160,7 +172,8 @@ ipcMain.handle('tx:list', () => st.tx.list.all());
     const id = createTx(type, reference, items.map((i:any)=>({
       product_id: Number(i.product_id),
       qty: Number(i.qty),
-      unit_price: Number(i.unit_price)
+      unit_price: Number(i.unit_price),
+      discount_percent: Number(i.discount_percent||0)
     })));
     return { id };
   });

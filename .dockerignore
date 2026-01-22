@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-electron
+.git
+.gitignore
+.env
+npm-debug.log
+yarn-error.log

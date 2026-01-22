@@ -1,17 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { Transaction } from '../types';
 import { useLoad } from '../hooks/useLoad';
 import { listTx } from '../lib/api';
-import TxForm from './TxForm';
 
-export default function Transactions(){
+export default function Transactions({ refreshKey }: { refreshKey?: number }){
   const [rows, reload] = useLoad<Transaction[]>(listTx, []);
-  const [open, setOpen] = useState(false);
+  const initialReload = useRef(true);
+  useEffect(() => {
+    if (refreshKey === undefined) return;
+    if (initialReload.current) {
+      initialReload.current = false;
+      return;
+    }
+    void reload();
+  }, [refreshKey, reload]);
   return (
     <div className="card">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <h3 style={{margin:0}}>Recent Transactions</h3>
-        <button className="btn primary" onClick={()=>setOpen(true)}>Record Transaction</button>
       </div>
       <table className="table" style={{marginTop:8}}>
         <thead><tr><th>ID</th><th>Type</th><th>Reference</th><th>Amount</th><th>Date</th></tr></thead>
@@ -21,7 +27,6 @@ export default function Transactions(){
           ))}
         </tbody>
       </table>
-      {open && <TxForm onClose={()=>setOpen(false)} onSaved={reload} />}
     </div>
   );
 }

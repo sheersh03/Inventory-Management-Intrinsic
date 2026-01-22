@@ -8,7 +8,7 @@ export type Product = {
   reorder_level: number;
 };
 
-export type TxItem = { product_id: number; qty: number; unit_price: number };
+export type TxItem = { product_id: number; qty: number; unit_price: number; discount_percent?: number; discounted_unit_price?: number };
 
 export type Transaction = {
   id: number;

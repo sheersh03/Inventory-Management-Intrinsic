@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Product } from '../types';
 import { useLoad } from '../hooks/useLoad';
 import { listProducts, createProduct, updateProduct, deleteProduct, exportCsv } from '../lib/api';
 import ProductForm from './ProductForm';
 
-export default function Products(){
+export default function Products({ refreshKey }: { refreshKey?: number }){
   const [rows, reload] = useLoad<Product[]>(listProducts, []);
+  const initialLoad = useRef(true);
+  useEffect(() => {
+    if (refreshKey === undefined) return;
+    if (initialLoad.current) {
+      initialLoad.current = false;
+      return;
+    }
+    void reload();
+  }, [refreshKey, reload]);
   const [modal, setModal] = useState<Product | null | undefined>(null);
   const create = async (p: Partial<Product>) => { try{ await createProduct(p); await reload(); } catch(e:any){ alert(e?.message||'Failed to create'); } };
   const update = async (p: Product) => { try{ await updateProduct(p); await reload(); } catch(e:any){ alert(e?.message||'Failed to update'); } };
