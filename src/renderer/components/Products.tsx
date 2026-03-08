@@ -4,7 +4,7 @@ import { useLoad } from '../hooks/useLoad';
 import { listProducts, createProduct, updateProduct, deleteProduct, exportCsv } from '../lib/api';
 import ProductForm from './ProductForm';
 
-export default function Products({ refreshKey }: { refreshKey?: number }){
+export default function Products({ refreshKey, onProductChange }: { refreshKey?: number; onProductChange?: () => void }){
   const [rows, reload] = useLoad<Product[]>(listProducts, []);
   const initialLoad = useRef(true);
   useEffect(() => {
@@ -16,9 +16,9 @@ export default function Products({ refreshKey }: { refreshKey?: number }){
     void reload();
   }, [refreshKey, reload]);
   const [modal, setModal] = useState<Product | null | undefined>(null);
-  const create = async (p: Partial<Product>) => { try{ await createProduct(p); await reload(); } catch(e:any){ alert(e?.message||'Failed to create'); } };
-  const update = async (p: Product) => { try{ await updateProduct(p); await reload(); } catch(e:any){ alert(e?.message||'Failed to update'); } };
-  const remove = async (id:number) => { if (confirm('Delete product?')) { try{ await deleteProduct(id); await reload(); } catch(e:any){ alert(e?.message||'Failed to delete'); } } };
+  const create = async (p: Partial<Product>) => { try{ await createProduct(p); await reload(); await onProductChange?.(); } catch(e:any){ alert(e?.message||'Failed to create'); } };
+  const update = async (p: Product) => { try{ await updateProduct(p); await reload(); await onProductChange?.(); } catch(e:any){ alert(e?.message||'Failed to update'); } };
+  const remove = async (id:number) => { if (confirm('Delete product?')) { try{ await deleteProduct(id); await reload(); await onProductChange?.(); } catch(e:any){ alert(e?.message||'Failed to delete'); } } };
   return (
     <div className="card">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>

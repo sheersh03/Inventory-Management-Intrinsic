@@ -32,6 +32,27 @@ export async function deleteProduct(id: number): Promise<{ok:true}> {
 export async function listTx(): Promise<Transaction[]> {
   return hasApi ? (window as any).api.tx.list() : getLocal<Transaction[]>('pi.transactions', []);
 }
+export async function deleteTx(id: number): Promise<{ ok: true }> {
+  if (hasApi) return (window as any).api.tx.delete(id);
+  const L = getLocal<Transaction[]>('pi.transactions', []);
+  setLocal('pi.transactions', L.filter(x => x.id !== id));
+  return { ok: true } as const;
+}
+export async function deleteAllTx(): Promise<{ ok: true }> {
+  if (hasApi) {
+    const api = (window as any).api?.tx;
+    if (typeof api?.deleteAll === 'function') {
+      return api.deleteAll();
+    }
+    if (typeof api?.delete === 'function') {
+      const list = await listTx();
+      for (const t of list) await api.delete(t.id);
+      return { ok: true } as const;
+    }
+  }
+  setLocal('pi.transactions', []);
+  return { ok: true } as const;
+}
 export async function createTx(payload: { type:'purchase'|'sale'; reference?: string; items: TxItem[] }): Promise<{id:number}> {
   if (hasApi) return (window as any).api.tx.create(payload);
   const TKEY='pi.transactions', PKEY='pi.products';

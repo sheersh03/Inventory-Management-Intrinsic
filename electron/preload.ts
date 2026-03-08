@@ -9,7 +9,9 @@ contextBridge.exposeInMainWorld('api', {
   },
   tx: {
     list: async () => ipcRenderer.invoke('tx:list'),
-    create: async (t: any) => ipcRenderer.invoke('tx:create', t)
+    create: async (t: any) => ipcRenderer.invoke('tx:create', t),
+    delete: async (id: number) => ipcRenderer.invoke('tx:delete', id),
+    deleteAll: async () => ipcRenderer.invoke('tx:deleteAll')
   },
   exportCsv: async () => ipcRenderer.invoke('export:productsCsv')
   ,

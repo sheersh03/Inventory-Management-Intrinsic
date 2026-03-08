@@ -2,7 +2,6 @@ export type InvoiceCustomer = {
   name: string;
   address?: string;
   phone?: string;
-  gstin?: string;
   placeOfSupply?: string;
 };
 
@@ -102,13 +101,12 @@ export function buildInvoiceHtml(payload: InvoicePayload): string {
   const taxAmount = Number(((payload.total * taxPercent) / 100).toFixed(2));
   const afterTaxTotal = Number((payload.total + taxAmount).toFixed(2));
   const words = `${numberToWords(Math.round(payload.total))} Rupees Only`;
-  const qrData = `BabyBox|Invoice:${payload.invoiceNo}|Total:${payload.total.toFixed(2)}|Ref:${payload.reference || 'N/A'}`;
-  const qrSvg = generateQrSvg(qrData, 26, 6);
-
-  const customerAddress = payload.customer.address ? payload.customer.address.replace(/\n/g, '<br/>') : '-';
-  const customerGST = payload.customer.gstin || '-';
+  const customerAddress = payload.customer.address?.trim();
   const customerPhone = payload.customer.phone || '-';
-  const placeOfSupply = payload.customer.placeOfSupply || '-';
+  const placeOfSupply = payload.customer.placeOfSupply?.trim();
+  const reference = payload.reference?.trim();
+  const qrData = `BabyBox|Invoice:${payload.invoiceNo}|Total:${payload.total.toFixed(2)}|Ref:${reference || 'N/A'}`;
+  const qrSvg = generateQrSvg(qrData, 26, 6);
 
   const lineRows = payload.items.map((line, idx) => {
     return `
@@ -175,6 +173,7 @@ export function buildInvoiceHtml(payload: InvoicePayload): string {
           <div>
             <h1>KD COLLECTION</h1>
             <div class="tagline">D-33 Shyam Park extension  Rajendra nagar Ghaziabad, Phn. No 8448802078</div>
+            <div class="tagline" style="margin-top:4px;">GSTIN: 09ABFFK0910K1ZD</div>
           </div>
           <div style="text-align:right">
             <strong>Tax Invoice</strong>
@@ -186,18 +185,16 @@ export function buildInvoiceHtml(payload: InvoicePayload): string {
           <div class="box">
             <strong>Customer Detail</strong>
             <div><strong>Name:</strong> ${payload.customer.name || '-'}</div>
-            <div><strong>Address:</strong><br/>${customerAddress}</div>
+            ${customerAddress ? `<div><strong>Address:</strong><br/>${customerAddress.replace(/\n/g, '<br/>')}</div>` : ''}
             <div><strong>Phone:</strong> ${customerPhone}</div>
-            <div><strong>GSTIN:</strong> ${customerGST}</div>
-            <div><strong>Place of Supply:</strong> ${placeOfSupply}</div>
+            ${placeOfSupply ? `<div><strong>Place of Supply:</strong> ${placeOfSupply}</div>` : ''}
           </div>
           <div class="box">
             <strong>Invoice No.</strong>
             <div>${payload.invoiceNo}</div>
             <strong>Invoice Date</strong>
             <div>${invoiceDate} · ${invoiceTime}</div>
-            <strong>Reference</strong>
-            <div>${payload.reference || '-'}</div>
+            ${reference ? `<strong>Reference</strong><div>${reference}</div>` : ''}
           </div>
         </div>
 

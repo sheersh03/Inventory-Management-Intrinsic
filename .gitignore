@@ -4,3 +4,9 @@ dist-electron/
 *.log
 .DS_Store
 .resources/
+
+# User data - never commit; each installation keeps its own
+data/
+bills/
+data_backup/
+bills_backup/

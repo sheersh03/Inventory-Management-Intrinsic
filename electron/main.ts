@@ -73,11 +73,15 @@ const st = {
   },
   tx: {
     list: db.prepare(`SELECT id, type, reference, created_at, amount FROM transactions ORDER BY id DESC LIMIT 200`),
+    getById: db.prepare(`SELECT id, type FROM transactions WHERE id = ?`),
+    getItems: db.prepare(`SELECT product_id, qty FROM tx_items WHERE tx_id = ?`),
     insertTx: db.prepare(`INSERT INTO transactions (type, reference) VALUES (?, ?)`),
     insertItem: db.prepare(`INSERT INTO tx_items (tx_id, product_id, qty, unit_price, discount_percent, discounted_unit_price) VALUES (?,?,?,?,?,?)`),
     addStock: db.prepare(`UPDATE products SET stock = stock + ? WHERE id = ?`),
     sumItems: db.prepare(`SELECT SUM(qty * discounted_unit_price) as total FROM tx_items WHERE tx_id = ?`),
-    updateAmount: db.prepare(`UPDATE transactions SET amount = ? WHERE id = ?`)
+    updateAmount: db.prepare(`UPDATE transactions SET amount = ? WHERE id = ?`),
+    del: db.prepare(`DELETE FROM transactions WHERE id = ?`),
+    getAllIds: db.prepare(`SELECT id FROM transactions`)
   }
 };
 
@@ -163,6 +167,31 @@ ipcMain.handle('products:update', (_e, p: any) => {
 ipcMain.handle('products:delete', (_e, id: number) => { st.products.del.run(Number(id)); return { ok: true }; });
 
 ipcMain.handle('tx:list', () => st.tx.list.all());
+
+const deleteTxById = db.transaction((id: number) => {
+  const tx = st.tx.getById.get(id) as { id: number; type: string } | undefined;
+  if (!tx) return;
+  const items = st.tx.getItems.all(id) as { product_id: number; qty: number }[];
+  const mult = tx.type === 'sale' ? 1 : -1;
+  for (const it of items) {
+    st.tx.addStock.run(mult * it.qty, it.product_id);
+  }
+  st.tx.del.run(id);
+});
+
+ipcMain.handle('tx:delete', (_e, id: number) => {
+  deleteTxById(Number(id));
+  return { ok: true };
+});
+
+ipcMain.handle('tx:deleteAll', () => {
+  const all = st.tx.getAllIds.all() as { id: number }[];
+  for (const row of all) {
+    deleteTxById(row.id);
+  }
+  return { ok: true };
+});
+
 (function registerTxCreate(){
   ipcMain.handle('tx:create', (_e, payload: any) => {
     const type = payload?.type === 'sale' ? 'sale' : 'purchase';

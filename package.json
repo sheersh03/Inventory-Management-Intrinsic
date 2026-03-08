@@ -12,7 +12,8 @@
     "build": "tsup electron/main.ts electron/preload.ts --format cjs --out-dir dist-electron && vite build",
     "dist": "electron-builder --win portable",
     "rebuild": "node scripts/run-electron-rebuild.mjs",
-    "postinstall": "node scripts/run-electron-rebuild.mjs"
+    "postinstall": "node scripts/run-electron-rebuild.mjs",
+    "safe-pull": "node scripts/safe-pull.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.2.0",

@@ -1,3 +1,8 @@
+if (typeof document !== 'undefined') {
+  const saved = localStorage.getItem('theme');
+  document.documentElement.setAttribute('data-theme', saved === 'light' ? 'light' : 'dark');
+}
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';

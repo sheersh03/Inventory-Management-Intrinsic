@@ -13,13 +13,13 @@ const defaultCustomer: InvoiceCustomer = {
   name: 'Walk-in Customer',
   address: '',
   phone: '',
-  gstin: '',
   placeOfSupply: ''
 };
 
 export default function GenerateBill({ products, onSaved }: { products: Product[]; onSaved?: () => Promise<void> | void }) {
   const [items, setItems] = useState<BillRow[]>([{ product_id: '', qty: 1, discount_percent: 0 }]);
   const [reference, setReference] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 16));
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,6 +51,7 @@ export default function GenerateBill({ products, onSaved }: { products: Product[
   const resetForm = () => {
     setItems([{ product_id: '', qty: 1, discount_percent: 0 }]);
     setReference('');
+    setInvoiceDate(new Date().toISOString().slice(0, 16));
     setError(null);
   };
 
@@ -92,9 +93,10 @@ export default function GenerateBill({ products, onSaved }: { products: Product[
           total: line.total,
           share_percent: total ? (line.total / total) * 100 : 0
         }));
+      const dateIso = invoiceDate ? new Date(invoiceDate).toISOString() : new Date().toISOString();
       const html = buildInvoiceHtml({
         invoiceNo: result.id,
-        date: new Date().toISOString(),
+        date: dateIso,
         reference: reference.trim() || undefined,
         customer,
         items: invoiceLines,
@@ -141,28 +143,31 @@ export default function GenerateBill({ products, onSaved }: { products: Product[
             onChange={e => setCustomer(prev => ({ ...prev, phone: e.target.value }))}
           />
         </div>
-        <div className="grid2" style={{ gap: 8, marginTop: 8 }}>
-          <input
-            className="input"
-            placeholder="GSTIN"
-            value={customer.gstin}
-            onChange={e => setCustomer(prev => ({ ...prev, gstin: e.target.value }))}
-          />
-          <input
-            className="input"
-            placeholder="Place of Supply"
-            value={customer.placeOfSupply}
-            onChange={e => setCustomer(prev => ({ ...prev, placeOfSupply: e.target.value }))}
-          />
-        </div>
+        <input
+          className="input"
+          placeholder="Place of Supply (optional)"
+          value={customer.placeOfSupply}
+          onChange={e => setCustomer(prev => ({ ...prev, placeOfSupply: e.target.value }))}
+          style={{ marginTop: 8 }}
+        />
         <textarea
           className="input"
-          placeholder="Address"
+          placeholder="Address (optional)"
           rows={2}
           style={{ marginTop: 8, resize: 'vertical' }}
           value={customer.address}
           onChange={e => setCustomer(prev => ({ ...prev, address: e.target.value }))}
         />
+        <div style={{ marginTop: 8 }}>
+          <label style={{ display: 'block', fontSize: '0.85rem', color: '#9ca3af', marginBottom: 4 }}>Invoice Date (optional)</label>
+          <input
+            type="datetime-local"
+            className="input input-date"
+            value={invoiceDate}
+            onChange={e => setInvoiceDate(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
         <input
           className="input"
           placeholder="Reference (optional)"
