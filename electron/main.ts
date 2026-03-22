@@ -49,6 +49,35 @@ function ensureDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_tx_items_tx ON tx_items(tx_id);
   `);
+  const transactionsSchema = db.prepare(`
+    SELECT sql
+    FROM sqlite_master
+    WHERE type = 'table' AND name = 'transactions'
+  `).get() as { sql?: string } | undefined;
+  if (transactionsSchema?.sql?.toUpperCase().includes('AUTOINCREMENT')) {
+    const foreignKeysEnabled = Number(db.pragma('foreign_keys', { simple: true })) === 1;
+    if (foreignKeysEnabled) db.pragma('foreign_keys = OFF');
+    try {
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE transactions_new (
+            id INTEGER PRIMARY KEY,
+            type TEXT NOT NULL CHECK (type IN ('purchase','sale')),
+            reference TEXT,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+            amount REAL NOT NULL DEFAULT 0
+          );
+          INSERT INTO transactions_new (id, type, reference, created_at, amount)
+          SELECT id, type, reference, created_at, amount
+          FROM transactions;
+          DROP TABLE transactions;
+          ALTER TABLE transactions_new RENAME TO transactions;
+        `);
+      })();
+    } finally {
+      if (foreignKeysEnabled) db.pragma('foreign_keys = ON');
+    }
+  }
   const ensureColumn = (table: string, column: string, definition: string) => {
     const info = db.prepare(`PRAGMA table_info(${table})`).all();
     if (!info.some((row:any) => row.name === column)) {
@@ -75,7 +104,20 @@ const st = {
     list: db.prepare(`SELECT id, type, reference, created_at, amount FROM transactions ORDER BY id DESC LIMIT 200`),
     getById: db.prepare(`SELECT id, type FROM transactions WHERE id = ?`),
     getItems: db.prepare(`SELECT product_id, qty FROM tx_items WHERE tx_id = ?`),
-    insertTx: db.prepare(`INSERT INTO transactions (type, reference) VALUES (?, ?)`),
+    getNextId: db.prepare(`
+      SELECT CASE
+        WHEN NOT EXISTS (SELECT 1 FROM transactions WHERE id = 1) THEN 1
+        ELSE (
+          SELECT t1.id + 1
+          FROM transactions t1
+          LEFT JOIN transactions t2 ON t2.id = t1.id + 1
+          WHERE t2.id IS NULL
+          ORDER BY t1.id
+          LIMIT 1
+        )
+      END AS nextId
+    `),
+    insertTx: db.prepare(`INSERT INTO transactions (id, type, reference) VALUES (?, ?, ?)`),
     insertItem: db.prepare(`INSERT INTO tx_items (tx_id, product_id, qty, unit_price, discount_percent, discounted_unit_price) VALUES (?,?,?,?,?,?)`),
     addStock: db.prepare(`UPDATE products SET stock = stock + ? WHERE id = ?`),
     sumItems: db.prepare(`SELECT SUM(qty * discounted_unit_price) as total FROM tx_items WHERE tx_id = ?`),
@@ -86,8 +128,9 @@ const st = {
 };
 
 const createTx = db.transaction((type: 'purchase'|'sale', reference: string | null, items: {product_id:number; qty:number; unit_price:number; discount_percent?: number}[]) => {
-  const txInfo = st.tx.insertTx.run(type, reference);
-  const txId = Number(txInfo.lastInsertRowid);
+  const nextIdRow = st.tx.getNextId.get() as { nextId?: number } | undefined;
+  const txId = Number(nextIdRow?.nextId ?? 1);
+  st.tx.insertTx.run(txId, type, reference);
   for (const it of items) {
     if (!it.product_id || it.qty <= 0 || it.unit_price < 0) throw new Error('Invalid line item');
     const mult = type === 'purchase' ? 1 : -1;
