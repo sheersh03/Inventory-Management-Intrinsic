@@ -105,17 +105,17 @@ const st = {
     getById: db.prepare(`SELECT id, type FROM transactions WHERE id = ?`),
     getItems: db.prepare(`SELECT product_id, qty FROM tx_items WHERE tx_id = ?`),
     getNextId: db.prepare(`
-      SELECT CASE
-        WHEN NOT EXISTS (SELECT 1 FROM transactions WHERE id = 1) THEN 1
-        ELSE (
+      SELECT COALESCE(
+        (
           SELECT t1.id + 1
           FROM transactions t1
           LEFT JOIN transactions t2 ON t2.id = t1.id + 1
           WHERE t2.id IS NULL
           ORDER BY t1.id
           LIMIT 1
-        )
-      END AS nextId
+        ),
+        (SELECT COALESCE(MAX(id), 0) + 1 FROM transactions)
+      ) AS nextId
     `),
     insertTx: db.prepare(`INSERT INTO transactions (id, type, reference) VALUES (?, ?, ?)`),
     insertItem: db.prepare(`INSERT INTO tx_items (tx_id, product_id, qty, unit_price, discount_percent, discounted_unit_price) VALUES (?,?,?,?,?,?)`),
